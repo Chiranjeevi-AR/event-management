@@ -33,12 +33,6 @@ function Login({ onLogin }) {
     }
   };
 
-  const demoAccounts = [
-    { email: 'admin@techuni.edu.in', role: 'admin', name: 'College Admin' },
-    { email: 'rahul.sharma@techuni.edu.in', role: 'student', name: 'Rahul Sharma' },
-    { email: 'priya.patel@techuni.edu.in', role: 'student', name: 'Priya Patel' },
-    { email: 'arjun.singh@techuni.edu.in', role: 'student', name: 'Arjun Singh' }
-  ];
 
   return (
     <div className="login-container">
@@ -99,32 +93,6 @@ function Login({ onLogin }) {
           <p>Don't have an account? <Link to="/signup">Create one here</Link></p>
         </div>
         
-        <div className="demo-accounts">
-          <h3>Demo Accounts</h3>
-          <p>Password for all accounts: <strong>demo123</strong></p>
-          <div className="demo-list">
-            {demoAccounts.map((account, index) => (
-              <div key={index} className="demo-account">
-                <strong>{account.name}</strong> ({account.role})
-                <br />
-                <span className="demo-email">{account.email}</span>
-                <button 
-                  type="button"
-                  className="quick-login"
-                  onClick={() => {
-                    setFormData({
-                      email: account.email,
-                      password: 'demo123',
-                      role: account.role
-                    });
-                  }}
-                >
-                  Quick Login
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
