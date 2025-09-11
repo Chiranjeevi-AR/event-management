@@ -1,0 +1,16 @@
+{
+  "name": "webknot-campus-frontend",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "devCommand": "npm start",
+  "framework": "create-react-app",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "REACT_APP_API_URL": "https://webknot-campus-backend.onrender.com"
+  }
+}

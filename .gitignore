@@ -19,6 +19,8 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+# Allow .env.production for deployment
+!frontend/.env.production
 
 # IDE files
 .vscode/
