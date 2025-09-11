@@ -1,11 +1,12 @@
 // Campus Drive Assignment - Backend API
 // Technologies: Node.js, Express, SQLite
 
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const bcrypt = require("bcrypt");
-const database = require("./utils/database");
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const bcrypt = require('bcrypt');
+const database = require('./utils/database');
+const initDatabase = require('./utils/initDatabase');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,13 +15,33 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Root route - API info
-app.get("/", (req, res) => {
+// Root route - API information
+app.get('/', (req, res) => {
   res.json({
-    message: "Campus Drive API - Webknot Technologies",
-    version: "1.0.0",
-    status: "running",
-    documentation: "See README.md for sample curl commands",
+    message: 'Campus Drive API - Webknot Technologies',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      core: [
+        'POST /colleges',
+        'POST /students',
+        'POST /events',
+        'POST /register',
+        'POST /attendance',
+        'POST /feedback'
+      ],
+      reports: [
+        'GET /reports/event-popularity',
+        'GET /reports/attendance',
+        'GET /reports/student-participation',
+        'GET /reports/feedback',
+        'GET /reports/top-students'
+      ],
+      utility: [
+        'GET /health'
+      ]
+    },
+    documentation: 'See README.md for sample curl commands'
   });
 });
 
@@ -35,7 +56,6 @@ async function startServer() {
 
     const hasData = await database.hasData();
     if (!hasData) {
-      console.log("⚠️ No data found → Seeding...");
       await database.seedData();
     }
 
@@ -101,7 +121,9 @@ async function startServer() {
         if (!college)
           return res.status(400).json({ error: "Invalid college selected" });
 
-        const password_hash = await bcrypt.hash(password, 10);
+        // Hash password
+        const saltRounds = 10;
+        const password_hash = await bcrypt.hash(password, saltRounds);
 
         const result = await database.run(
           "INSERT INTO admin_users (name, email, password_hash, college_id) VALUES (?, ?, ?, ?)",
@@ -110,15 +132,15 @@ async function startServer() {
 
         res.status(201).json({
           success: true,
-          message: "Admin account created",
+          message: 'Admin account created successfully',
           user: {
             id: result.id,
             name,
             email,
-            role: "admin",
+            role: 'admin',
             college_id,
-            college_name: college.name,
-          },
+            college_name: college.name
+          }
         });
       } catch (err) {
         res.status(500).json({ error: "Failed to create admin account" });
@@ -141,12 +163,18 @@ async function startServer() {
             .status(400)
             .json({ error: "Password must be at least 6 characters long" });
 
-        const existing = await database.get(
-          "SELECT id FROM student_users WHERE email = ?",
+        // Check if email already exists
+        const existingStudent = await database.get(
+          'SELECT id FROM students WHERE email = ?',
           [email]
         );
-        if (existing)
-          return res.status(409).json({ error: "Email already registered" });
+        const existingUser = await database.get(
+          'SELECT id FROM student_users WHERE email = ?',
+          [email]
+        );
+        if (existingStudent || existingUser) {
+          return res.status(409).json({ error: 'Email already registered' });
+        }
 
         const college = await database.get(
           "SELECT id, name FROM colleges WHERE id = ?",
@@ -155,31 +183,35 @@ async function startServer() {
         if (!college)
           return res.status(400).json({ error: "Invalid college selected" });
 
-        const password_hash = await bcrypt.hash(password, 10);
+        // Hash password
+        const saltRounds = 10;
+        const password_hash = await bcrypt.hash(password, saltRounds);
 
-        const studentRes = await database.run(
-          "INSERT INTO students (name, email, phone, college_id, course, year) VALUES (?, ?, ?, ?, ?, ?)",
+        // Create student record
+        const studentResult = await database.run(
+          'INSERT INTO students (name, email, phone, college_id, course, year) VALUES (?, ?, ?, ?, ?, ?)',
           [name, email, phone || null, college_id, course || null, year || null]
         );
 
+        // Create student user record
         await database.run(
-          "INSERT INTO student_users (student_id, email, password_hash) VALUES (?, ?, ?)",
-          [studentRes.id, email, password_hash]
+          'INSERT INTO student_users (student_id, email, password_hash) VALUES (?, ?, ?)',
+          [studentResult.id, email, password_hash]
         );
 
         res.status(201).json({
           success: true,
-          message: "Student account created",
+          message: 'Student account created successfully',
           user: {
-            id: studentRes.id,
+            id: studentResult.id,
             name,
             email,
-            role: "student",
+            role: 'student',
             college_id,
             college_name: college.name,
             course,
-            year,
-          },
+            year
+          }
         });
       } catch (err) {
         res.status(500).json({ error: "Failed to create student account" });
@@ -196,46 +228,46 @@ async function startServer() {
             .json({ error: "Email and password are required" });
 
         let user = null;
-        if (role === "admin") {
-          const admin = await database.get(
-            `SELECT au.*, c.name as college_name 
-             FROM admin_users au 
-             LEFT JOIN colleges c ON au.college_id = c.id 
-             WHERE au.email = ?`,
+
+        if (role === 'admin') {
+          const adminUser = await database.get(
+            `SELECT au.*, c.name as college_name
+             FROM admin_users au
+             LEFT JOIN colleges c ON au.college_id = c.id
+             WHERE au.email = ? AND au.is_active = 1`,
             [email]
           );
-          if (admin && (await bcrypt.compare(password, admin.password_hash))) {
+
+          if (adminUser && await bcrypt.compare(password, adminUser.password_hash)) {
             user = {
-              id: admin.id,
-              name: admin.name,
-              email: admin.email,
-              role: "admin",
-              college_id: admin.college_id,
-              college_name: admin.college_name,
+              id: adminUser.id,
+              name: adminUser.name,
+              email: adminUser.email,
+              role: 'admin',
+              college_id: adminUser.college_id,
+              college_name: adminUser.college_name
             };
           }
-        } else {
-          const student = await database.get(
-            `SELECT su.*, s.name, s.course, s.year, c.name as college_name
+        } else if (role === 'student') {
+          const studentUser = await database.get(
+            `SELECT su.*, s.name, s.phone, s.course, s.year, c.name as college_name
              FROM student_users su
              JOIN students s ON su.student_id = s.id
              LEFT JOIN colleges c ON s.college_id = c.id
-             WHERE su.email = ?`,
+             WHERE su.email = ? AND su.is_active = 1`,
             [email]
           );
-          if (
-            student &&
-            (await bcrypt.compare(password, student.password_hash))
-          ) {
+
+          if (studentUser && await bcrypt.compare(password, studentUser.password_hash)) {
             user = {
-              id: student.student_id,
-              name: student.name,
-              email: student.email,
-              role: "student",
-              college_id: student.college_id,
-              college_name: student.college_name,
-              course: student.course,
-              year: student.year,
+              id: studentUser.student_id,
+              name: studentUser.name,
+              email: studentUser.email,
+              role: 'student',
+              college_id: studentUser.college_id,
+              college_name: studentUser.college_name,
+              course: studentUser.course,
+              year: studentUser.year
             };
           }
         }
@@ -497,11 +529,15 @@ async function startServer() {
 
     // --------------------------------------------
 
-    app.listen(PORT, () =>
-      console.log(`🚀 API running on http://localhost:${PORT}`)
-    );
+    // =========================
+    // START SERVER
+    // =========================
+    app.listen(PORT, () => {
+      console.log(`Campus Drive API listening on http://localhost:${PORT}`);
+    });
   } catch (err) {
-    console.error("❌ Failed to start server:", err);
+    console.error('Failed to start server:', err);
+    process.exit(1);
   }
 }
 

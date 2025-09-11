@@ -1,20 +1,11 @@
-const sqlite3 = require("sqlite3").verbose();
-const fs = require("fs");
-const path = require("path");
+const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
+const path = require('path');
 
 class Database {
   constructor() {
-    // Store DB inside backend/data/ for local development
-    // For production, use /opt/render/project/data for persistence
-    const dataDir = process.env.NODE_ENV === 'production' 
-      ? '/opt/render/project/data'
-      : path.join(__dirname, "..", "data");
-    
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-
-    this.dbPath = path.join(dataDir, "campus_drive.db");
+    // Create database in the backend directory
+    this.dbPath = path.join(__dirname, '..', 'campus_drive.db');
     this.db = null;
   }
 
@@ -23,108 +14,124 @@ class Database {
     return new Promise((resolve, reject) => {
       this.db = new sqlite3.Database(this.dbPath, (err) => {
         if (err) {
-          console.error("Error connecting to database:", err.message);
+          console.error('Error connecting to database:', err.message);
           reject(err);
         } else {
-          console.log("✅ Connected to SQLite database at", this.dbPath);
-          this.db.run("PRAGMA foreign_keys = ON");
+          console.log('Connected to SQLite database');
+          // Enable foreign key constraints
+          this.db.run('PRAGMA foreign_keys = ON');
           resolve();
         }
       });
     });
   }
 
+  // Run SQL query with parameters
   async run(sql, params = []) {
     return new Promise((resolve, reject) => {
       this.db.run(sql, params, function (err) {
-        if (err) reject(err);
-        else resolve({ id: this.lastID, changes: this.changes });
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ id: this.lastID, changes: this.changes });
+        }
       });
     });
   }
 
+  // Get single row
   async get(sql, params = []) {
     return new Promise((resolve, reject) => {
       this.db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
       });
     });
   }
 
+  // Get all rows
   async all(sql, params = []) {
     return new Promise((resolve, reject) => {
       this.db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
       });
     });
   }
 
-  // Initialize DB schema
+  // Initialize database with schema
   async initializeSchema() {
     try {
-      const schemaPath = path.join(__dirname, "..", "sql", "schema.sql");
-      const schema = fs.readFileSync(schemaPath, "utf8");
-      const statements = schema
-        .split(";")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+      const schemaPath = path.join(__dirname, '..', 'sql', 'schema.sql');
+      const schema = fs.readFileSync(schemaPath, 'utf8');
 
-      for (const stmt of statements) {
-        await this.run(stmt);
+      // Split schema by statements and execute each
+      const statements = schema.split(';').filter(stmt => stmt.trim().length > 0);
+
+      for (const statement of statements) {
+        await this.run(statement.trim());
       }
-      console.log("✅ Database schema initialized");
+
+      console.log('Database schema initialized successfully');
     } catch (error) {
-      console.error("❌ Error initializing schema:", error);
+      console.error('Error initializing schema:', error);
       throw error;
     }
   }
 
-  // Seed DB with sample data
+  // Seed database with sample data
   async seedData() {
     try {
-      const seedPath = path.join(__dirname, "..", "sql", "seed.sql");
-      if (!fs.existsSync(seedPath)) {
-        console.log("⚠️ No seed.sql found, skipping seeding");
-        return;
-      }
+      const seedPath = path.join(__dirname, '..', 'sql', 'seed.sql');
+      const seedData = fs.readFileSync(seedPath, 'utf8');
 
-      const seedData = fs.readFileSync(seedPath, "utf8");
-      const statements = seedData
-        .split(";")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+      // Split seed data by statements and execute each
+      const statements = seedData.split(';').filter(stmt => stmt.trim().length > 0);
 
-      for (const stmt of statements) {
-        if (/^INSERT/i.test(stmt)) {
-          await this.run(stmt);
+      for (const statement of statements) {
+        // Check if statement contains INSERT (anywhere in the statement)
+        if (statement.includes('INSERT')) {
+          await this.run(statement.trim());
         }
       }
-      console.log("✅ Database seeded");
+
+      console.log('Database seeded successfully');
     } catch (error) {
-      console.error("❌ Error seeding database:", error);
+      console.error('Error seeding database:', error);
       throw error;
     }
   }
 
+  // Check if database has data
   async hasData() {
     try {
-      const result = await this.get("SELECT COUNT(*) as count FROM colleges");
-      return result && result.count > 0;
-    } catch {
+      const result = await this.get('SELECT COUNT(*) as count FROM colleges');
+      return result.count > 0;
+    } catch (error) {
       return false;
     }
   }
 
+  // Close database connection
   close() {
     if (this.db) {
       this.db.close((err) => {
-        if (err) console.error("Error closing database:", err.message);
-        else console.log("Database connection closed");
+        if (err) {
+          console.error('Error closing database:', err.message);
+        } else {
+          console.log('Database connection closed');
+        }
       });
     }
   }
 }
 
-module.exports = new Database();
+// Create singleton instance
+const database = new Database();
+module.exports = database;
