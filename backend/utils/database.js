@@ -4,8 +4,12 @@ const path = require("path");
 
 class Database {
   constructor() {
-    // Store DB inside backend/data/
-    const dataDir = path.join(__dirname, "..", "data");
+    // Store DB inside backend/data/ for local development
+    // For production, use /opt/render/project/data for persistence
+    const dataDir = process.env.NODE_ENV === 'production' 
+      ? '/opt/render/project/data'
+      : path.join(__dirname, "..", "data");
+    
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
