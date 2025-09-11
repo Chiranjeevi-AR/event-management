@@ -6,7 +6,6 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const database = require('./utils/database');
-const initDatabase = require('./utils/initDatabase');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
