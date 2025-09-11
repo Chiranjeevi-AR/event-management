@@ -1,5 +1,7 @@
 -- Campus Drive Assignment - Seed Data
--- Sample data for demo: 1 college, 3 students, 2 events
+-- Basic sample data: colleges, students (no login accounts), events
+-- NOTE: No demo admin or student login accounts are included
+-- Users must register through the application to create accounts
 
 -- Insert sample colleges
 INSERT INTO colleges (name, location, contact_email) VALUES
