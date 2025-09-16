@@ -1,6 +1,6 @@
 # Campus Event Management System
 
-This is a small project I made for Webknot Tech, where I created a website of campus Event management where the admin i.e the staff can host and add events like workshops, seminars, and while students can see and register.
+This is a small project I made , where I created a website of campus Event management where the admin i.e the staff can host and add events like workshops, seminars, and while students can see and register.
 
 ## Features
 
